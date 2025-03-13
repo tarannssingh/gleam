@@ -188,7 +188,7 @@ pub fn main() {
 pub fn parse(input: String) -> Result(ExprC, String) {
   // Remove whitespace
   let input = string.trim(input)
-  
+
   // Try to parse as number first
   case int.parse(input) {
     Ok(n) -> Ok(NumC(n))
@@ -197,7 +197,14 @@ pub fn parse(input: String) -> Result(ExprC, String) {
       case string.starts_with(input, "\"") {
         True -> {
           case string.ends_with(input, "\"") {
-            True -> Ok(StrC(string.replace(string.slice(input, 1, string.length(input) - 1), "\"", "")))
+            True ->
+              Ok(
+                StrC(string.replace(
+                  string.slice(input, 1, string.length(input) - 1),
+                  "\"",
+                  "",
+                )),
+              )
             False -> Error("QWJZ: Unterminated string")
           }
         }
