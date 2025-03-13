@@ -183,3 +183,41 @@ pub fn one_test() {
 pub fn main() {
   gleeunit.main()
 }
+
+// Simple parser for basic expressions
+pub fn parse(input: String) -> Result(ExprC, String) {
+  // Remove whitespace
+  let input = string.trim(input)
+  
+  // Try to parse as number first
+  case int.parse(input) {
+    Ok(n) -> Ok(NumC(n))
+    Error(_) -> {
+      // Try to parse as string if it starts with quotes
+      case string.starts_with(input, "\"") {
+        True -> {
+          case string.ends_with(input, "\"") {
+            True -> Ok(StrC(string.replace(string.slice(input, 1, string.length(input) - 1), "\"", "")))
+            False -> Error("QWJZ: Unterminated string")
+          }
+        }
+        False -> {
+          // Try to parse as identifier
+          case input {
+            "true" -> Ok(IdC("true"))
+            "false" -> Ok(IdC("false"))
+            _ -> Ok(IdC(input))
+          }
+        }
+      }
+    }
+  }
+}
+
+// Example of parsing and interpreting
+pub fn parse_and_interp(input: String) -> Result(Value, String) {
+  case parse(input) {
+    Ok(expr) -> interp(expr, top_env)
+    Error(e) -> Error(e)
+  }
+}
