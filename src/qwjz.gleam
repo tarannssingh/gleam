@@ -50,7 +50,7 @@ pub const top_env = Env(
   ],
 )
 
-// lookup helper for interp to look fo bound variables and primitive functions
+// lookup helper for interp to look for bound variables and primitive functions
 pub fn lookup(for: String, e: List(Binding)) -> Result(Value, String) {
   case e {
     [] ->
@@ -89,22 +89,28 @@ pub fn interp(exp: ExprC, env: Env) -> Result(Value, String) {
             list.last(list.map(args, fn(x: ExprC) { interp(x, env) })),
             Error("QWJZ: unwrap error"),
           )
-        Ok(PrimV("++")) ->
-          Ok(
-            StrV(
-              list.fold(args, "", fn(s, r) {
-                case r {
-                  StrC(str) -> string.append(s, str)
-                  NumC(n) -> string.append(s, int.to_string(n))
-                  _ ->
-                    result.unwrap(
-                      Error("QWJZ: incorrect type in call of ++, given #{r}"),
-                      "default",
-                    )
+        Ok(PrimV("++")) -> {
+            let evaluated_args = list.map(args, fn(a) { interp(a, env) })
+            case list.all(evaluated_args, fn(a) {
+                case a {
+                    Ok(StrV(_)) -> True
+                    Ok(NumV(_)) -> True
+                    _ -> False
                 }
-              }),
-            ),
-          )
+            }) {
+                True -> {
+                    let concat_result = list.fold(evaluated_args, "", fn(s, r) {
+                        case r {
+                            Ok(StrV(str)) -> string.append(s, str)
+                            Ok(NumV(n)) -> string.append(s, int.to_string(n))
+                            _ -> s
+                        }
+                    })
+                    Ok(StrV(concat_result))
+                }
+                False -> Error("QWJZ: incorrect type in call of ++, expected only strings and numbers")
+            }
+        }
         Ok(PrimV("+")) ->
           case list.map(args, fn(a) { interp(a, env) }) {
             [Ok(NumV(n1)), Ok(NumV(n2))] -> Ok(NumV(n1 + n2))
@@ -122,6 +128,7 @@ pub fn interp(exp: ExprC, env: Env) -> Result(Value, String) {
           }
         Ok(PrimV("/")) ->
           case list.map(args, fn(a) { interp(a, env) }) {
+            [Ok(NumV(n1)), Ok(NumV(0))] -> Error("QWJZ: Division by zero")
             [Ok(NumV(n1)), Ok(NumV(n2))] -> Ok(NumV(n1 / n2))
             _ -> Error("QWJZ: incorrect call to / expression")
           }
@@ -154,13 +161,18 @@ pub fn interp(exp: ExprC, env: Env) -> Result(Value, String) {
             _ -> Ok(BoolV(False))
           }
         Ok(PrimV("println")) ->
-          case list.map(args, fn(a) { interp(a, env) }) {
-            [Ok(StrV(s1))] -> {
-              io.println(s1)
-              Ok(StrV(s1))
+            case list.map(args, fn(a) { interp(a, env) }) {
+                [Ok(StrV(s1))] -> {
+                    io.println(s1)
+                    Ok(StrV(s1))
+                }
+                [Ok(NumV(n))] -> {
+                    io.println(int.to_string(n))
+                    Ok(StrV(int.to_string(n)))    
+                }
+                _ -> Error("QWJZ: incorrect call to println expression, expected string or number")
             }
-            _ -> Error("QWJZ: incorrect call to println expression")
-          }
+
         _ -> Error("QWJZ: unknown expression #{fun}")
       }
     LamC(args, body) -> Ok(ClosV(args, body, env))
@@ -179,12 +191,7 @@ pub fn one_test() {
   |> should.equal(Ok(NumV(12)))
 }
 
-// main sets us up for testing
-pub fn main() {
-  gleeunit.main()
-}
-
-// Simple parser for basic expressions
+// parser for basic expressions
 pub fn parse(input: String) -> Result(ExprC, String) {
   // Remove whitespace
   let input = string.trim(input)
@@ -228,3 +235,43 @@ pub fn parse_and_interp(input: String) -> Result(Value, String) {
     Error(e) -> Error(e)
   }
 }
+
+// demo
+pub fn demo(env: Env) {
+    let run_demo = AppC(
+        IdC("seq"),
+        [
+            AppC(IdC("println"), [StrC("demo: performing operations...")]),
+
+            // operations
+            AppC(IdC("println"), [AppC(IdC("++"), [StrC("4 + 3 = "), AppC(IdC("+"), [NumC(4), NumC(3)])])]),
+            AppC(IdC("println"), [AppC(IdC("++"), [StrC("12 - 4 = "), AppC(IdC("-"), [NumC(12), NumC(4)])])]),
+            AppC(IdC("println"), [AppC(IdC("++"), [StrC("9 * 7 = "), AppC(IdC("*"), [NumC(9), NumC(7)])])]),
+            AppC(IdC("println"), [AppC(IdC("++"), [StrC("30 / 5 = "), AppC(IdC("/"), [NumC(30), NumC(5)])])]),
+
+            // comparison
+            AppC(IdC("println"), [StrC("is 5 <= 10...?")]),
+            IfC(
+                AppC(IdC("<="), [NumC(5), NumC(10)]),
+                AppC(IdC("println"), [StrC("yes it is!")]),
+                AppC(IdC("println"), [StrC("no it's not!")])
+            ),
+
+            // string concatenation
+            AppC(IdC("println"), [StrC("demo: string concatenation...")]),
+            AppC(IdC("println"), [AppC(IdC("++"), [StrC("Hello, "), StrC("world")])]),
+
+            AppC(IdC("println"), [StrC("demo complete!")])
+        ]
+    )
+
+    let _ = interp(run_demo, env)
+}
+
+// main
+pub fn main() {
+  let env = top_env
+  demo(env)
+  gleeunit.main()
+}
+

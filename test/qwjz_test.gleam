@@ -111,3 +111,14 @@ pub fn parser_test() {
   parse_and_interp("true")
   |> should.equal(Ok(BoolV(True)))
 }
+
+// arithmetic errors tests
+pub fn arithmetic_error_test() {
+  // adding a number to a string
+  interp(AppC(IdC("+"), [NumC(3), StrC("hello")]), top_env)
+  |> should.equal(Error("QWJZ: incorrect call to + expression"))
+
+  // division by zero
+  interp(AppC(IdC("/"), [NumC(5), NumC(0)]), top_env)
+  |> should.equal(Error("QWJZ: Division by zero"))
+}
