@@ -90,26 +90,32 @@ pub fn interp(exp: ExprC, env: Env) -> Result(Value, String) {
             Error("QWJZ: unwrap error"),
           )
         Ok(PrimV("++")) -> {
-            let evaluated_args = list.map(args, fn(a) { interp(a, env) })
-            case list.all(evaluated_args, fn(a) {
-                case a {
-                    Ok(StrV(_)) -> True
-                    Ok(NumV(_)) -> True
-                    _ -> False
-                }
-            }) {
-                True -> {
-                    let concat_result = list.fold(evaluated_args, "", fn(s, r) {
-                        case r {
-                            Ok(StrV(str)) -> string.append(s, str)
-                            Ok(NumV(n)) -> string.append(s, int.to_string(n))
-                            _ -> s
-                        }
-                    })
-                    Ok(StrV(concat_result))
-                }
-                False -> Error("QWJZ: incorrect type in call of ++, expected only strings and numbers")
+          let evaluated_args = list.map(args, fn(a) { interp(a, env) })
+          case
+            list.all(evaluated_args, fn(a) {
+              case a {
+                Ok(StrV(_)) -> True
+                Ok(NumV(_)) -> True
+                _ -> False
+              }
+            })
+          {
+            True -> {
+              let concat_result =
+                list.fold(evaluated_args, "", fn(s, r) {
+                  case r {
+                    Ok(StrV(str)) -> string.append(s, str)
+                    Ok(NumV(n)) -> string.append(s, int.to_string(n))
+                    _ -> s
+                  }
+                })
+              Ok(StrV(concat_result))
             }
+            False ->
+              Error(
+                "QWJZ: incorrect type in call of ++, expected only strings and numbers",
+              )
+          }
         }
         Ok(PrimV("+")) ->
           case list.map(args, fn(a) { interp(a, env) }) {
@@ -161,17 +167,20 @@ pub fn interp(exp: ExprC, env: Env) -> Result(Value, String) {
             _ -> Ok(BoolV(False))
           }
         Ok(PrimV("println")) ->
-            case list.map(args, fn(a) { interp(a, env) }) {
-                [Ok(StrV(s1))] -> {
-                    io.println(s1)
-                    Ok(StrV(s1))
-                }
-                [Ok(NumV(n))] -> {
-                    io.println(int.to_string(n))
-                    Ok(StrV(int.to_string(n)))    
-                }
-                _ -> Error("QWJZ: incorrect call to println expression, expected string or number")
+          case list.map(args, fn(a) { interp(a, env) }) {
+            [Ok(StrV(s1))] -> {
+              io.println(s1)
+              Ok(StrV(s1))
             }
+            [Ok(NumV(n))] -> {
+              io.println(int.to_string(n))
+              Ok(StrV(int.to_string(n)))
+            }
+            _ ->
+              Error(
+                "QWJZ: incorrect call to println expression, expected string or number",
+              )
+          }
 
         _ -> Error("QWJZ: unknown expression #{fun}")
       }
@@ -238,34 +247,36 @@ pub fn parse_and_interp(input: String) -> Result(Value, String) {
 
 // demo
 pub fn demo(env: Env) {
-    let run_demo = AppC(
-        IdC("seq"),
-        [
-            AppC(IdC("println"), [StrC("demo: performing operations...")]),
+  let run_demo =
+    AppC(IdC("seq"), [
+      AppC(IdC("println"), [StrC("demo: performing operations...")]),
+      // operations
+      AppC(IdC("println"), [
+        AppC(IdC("++"), [StrC("4 + 3 = "), AppC(IdC("+"), [NumC(4), NumC(3)])]),
+      ]),
+      AppC(IdC("println"), [
+        AppC(IdC("++"), [StrC("12 - 4 = "), AppC(IdC("-"), [NumC(12), NumC(4)])]),
+      ]),
+      AppC(IdC("println"), [
+        AppC(IdC("++"), [StrC("9 * 7 = "), AppC(IdC("*"), [NumC(9), NumC(7)])]),
+      ]),
+      AppC(IdC("println"), [
+        AppC(IdC("++"), [StrC("30 / 5 = "), AppC(IdC("/"), [NumC(30), NumC(5)])]),
+      ]),
+      // comparison
+      AppC(IdC("println"), [StrC("is 5 <= 10...?")]),
+      IfC(
+        AppC(IdC("<="), [NumC(5), NumC(10)]),
+        AppC(IdC("println"), [StrC("yes it is!")]),
+        AppC(IdC("println"), [StrC("no it's not!")]),
+      ),
+      // string concatenation
+      AppC(IdC("println"), [StrC("demo: string concatenation...")]),
+      AppC(IdC("println"), [AppC(IdC("++"), [StrC("Hello, "), StrC("world")])]),
+      AppC(IdC("println"), [StrC("demo complete!")]),
+    ])
 
-            // operations
-            AppC(IdC("println"), [AppC(IdC("++"), [StrC("4 + 3 = "), AppC(IdC("+"), [NumC(4), NumC(3)])])]),
-            AppC(IdC("println"), [AppC(IdC("++"), [StrC("12 - 4 = "), AppC(IdC("-"), [NumC(12), NumC(4)])])]),
-            AppC(IdC("println"), [AppC(IdC("++"), [StrC("9 * 7 = "), AppC(IdC("*"), [NumC(9), NumC(7)])])]),
-            AppC(IdC("println"), [AppC(IdC("++"), [StrC("30 / 5 = "), AppC(IdC("/"), [NumC(30), NumC(5)])])]),
-
-            // comparison
-            AppC(IdC("println"), [StrC("is 5 <= 10...?")]),
-            IfC(
-                AppC(IdC("<="), [NumC(5), NumC(10)]),
-                AppC(IdC("println"), [StrC("yes it is!")]),
-                AppC(IdC("println"), [StrC("no it's not!")])
-            ),
-
-            // string concatenation
-            AppC(IdC("println"), [StrC("demo: string concatenation...")]),
-            AppC(IdC("println"), [AppC(IdC("++"), [StrC("Hello, "), StrC("world")])]),
-
-            AppC(IdC("println"), [StrC("demo complete!")])
-        ]
-    )
-
-    let _ = interp(run_demo, env)
+  let _ = interp(run_demo, env)
 }
 
 // main
@@ -274,4 +285,3 @@ pub fn main() {
   demo(env)
   gleeunit.main()
 }
-
