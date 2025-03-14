@@ -5,7 +5,8 @@ import gleam/result
 import gleam/string
 import gleeunit
 import gleeunit/should
-
+import input.{input} as user_input
+ 
 pub type ExprC {
   NumC(n: Int)
   IfC(cond: ExprC, th: ExprC, el: ExprC)
